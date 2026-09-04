@@ -65,21 +65,32 @@ PUT /accounts/debit
 
 📂 Project Structure
 
-src
-└── main
-    └── java
-        └── com.example.bank_management
-            ├── controller
-            │   └── AccountController.java
-            │
-            ├── model
-            │   └── BankAccount.java
-            │
-            ├── repository
-            │   └── AccountRepository.java
-            │
-            └── service
-                └── AccountService.java
+bank-management/
+├── src/
+│   └── main/
+│       ├── java/
+│       │   └── com/
+│       │       └── example/
+│       │           └── bank_management/
+│       │               ├── controller/
+│       │               │   └── AccountController.java
+│       │               │
+│       │               ├── model/
+│       │               │   └── BankAccount.java
+│       │               │
+│       │               ├── repository/
+│       │               │   └── AccountRepository.java
+│       │               │
+│       │               └── service/
+│       │                   └── AccountService.java
+│       │
+│       └── resources/
+│           └── application.properties
+│
+├── pom.xml
+├── mvnw
+├── mvnw.cmd
+└── README.md
 
 🔄 Basic API Flow
 
