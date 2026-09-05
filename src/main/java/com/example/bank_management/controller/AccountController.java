@@ -1,95 +1,152 @@
 package com.example.bank_management.controller;
 
+import com.example.bank_management.dto.*;
 import com.example.bank_management.model.*;
-import com.example.bank_management.service.*;
-import org.springframework.web.bind.annotation.*;
+import com.example.bank_management.service.AccountService;
+import com.example.bank_management.service.TransactionService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 
 import java.util.*;
+
 @RestController
 @RequestMapping("/accounts")
-public class AccountController{
-  
-  @Autowired
-  private AccountService acService;
-  @Autowired
-  private TransactionService tsService;
+public class AccountController {
 
-  // Create new Bank Account
-  @PostMapping("/create")
-  public ResponseEntity<?> create(@RequestBody BankAccount BankAc){
-    return ResponseEntity.ok(acService.addUser(BankAc));
-  }
+    @Autowired
+    private AccountService acService;
 
-  //Find all account
-  @GetMapping
-  public ResponseEntity<?> findAll(){
-    return ResponseEntity.ok(acService.findAll());
-  }
+    @Autowired
+    private TransactionService tsService;
 
-  //add balance in account
-  @PutMapping("/credit")
-  public ResponseEntity<?> credit(@RequestBody BankAccount BankAc){
-    
-    Long Id = BankAc.getUserId();
-    if(Id!=null && acService.findUserId(Id)){
-      TransactionHistory th = new TransactionHistory();
-      th.setType(TransactionType.CREDIT);
-      acService.credit(BankAc);
-      th=tsService.update(th, null, BankAc, acService.balance(Id));
-      tsService.add(th);
-      return ResponseEntity.ok(acService.findUser(Id));
+
+    // =========================
+    // CREATE ACCOUNT
+    // =========================
+    @PostMapping("/create")
+    public ResponseEntity<BankAccount> create(
+            @Valid @RequestBody CreateAccountRequest data) {
+
+        BankAccount account = acService.addUser(data);
+
+        return ResponseEntity.ok(account);
     }
-    return ResponseEntity.badRequest().body(Map.of("message", "UserId not matched here"));
-  }
 
-  
 
-  //Debit balance in account
-  @PutMapping("/debit")
-  public ResponseEntity<?> debit(@RequestBody BankAccount BankAc){
-    Long Id = BankAc.getUserId();
-    if(Id!=null && acService.findUserId(Id)){
-      
-      TransactionHistory th = new TransactionHistory();
+    // =========================
+    // FIND ALL ACCOUNTS
+    // =========================
+    @GetMapping
+    public ResponseEntity<List<BankAccount>> findAll() {
 
-      //if transaction is passed
-      if(acService.isDebit(BankAc)){
-        th.setType(TransactionType.DEBIT);
-        th = tsService.update(th, null, BankAc, acService.balance(Id));
-        tsService.add(th);
-        return ResponseEntity.ok(acService.findUser(Id));
-      }
-      
-      //if transaction is failed
-      th.setType(TransactionType.FAILED);
-      th = tsService.update(th, null, BankAc, acService.balance(Id));
-      tsService.add(th);
-      return ResponseEntity.badRequest().body(Map.of("message", "Check your balance"));
+        return ResponseEntity.ok(acService.findAll());
     }
-    return ResponseEntity.badRequest().body(Map.of("message", "UserId not matched here"));
-  }
 
-  // Check bank balance
-  @GetMapping("/balance")
-  public ResponseEntity<?> checkBalance(@RequestParam Long userId){
-    if(userId == null || !acService.findUserId(userId)){
-      return ResponseEntity.badRequest().body(Map.of("message","UserId is not found"));
+
+    // =========================
+    // CREDIT MONEY
+    // =========================
+    @PutMapping("/credit")
+    public ResponseEntity<UserResponse> credit(
+            @Valid @RequestBody CreditRequest data) {
+
+        UserResponse list =
+                acService.userCredit(data);
+
+        if (list.getType() == TransactionType.FAILED) {
+
+            return ResponseEntity
+                    .badRequest()
+                    .body(list);
+        }
+
+        return ResponseEntity.ok(list);
     }
-    return ResponseEntity.ok(acService.findUser(userId));
-  }
 
-  //tranfer money
 
-  @PutMapping("/transfer")
-  public ResponseEntity<?> transfer(@RequestParam Long senderId, @RequestBody BankAccount BankAc){
-    return ResponseEntity.ok(Map.of("message", acService.transferMoney(senderId, BankAc)));
-  }
+    // =========================
+    // DEBIT MONEY
+    // =========================
+    @PutMapping("/debit")
+    public ResponseEntity<UserResponse> debit(
+            @Valid @RequestBody DebitRequest data) {
 
-@GetMapping("/history")
-public ResponseEntity<?> history() {
-    return ResponseEntity.ok(tsService.showAll());
-}
+
+        UserResponse list =
+                acService.userDebit(data);
+
+        if (list.getType() == TransactionType.FAILED) {
+
+            return ResponseEntity
+                    .badRequest()
+                    .body(list);
+        }
+
+        return ResponseEntity.ok(list);
+    }
+
+
+    // =========================
+    // CHECK BALANCE
+    // =========================
+    @GetMapping("/balance")
+    public ResponseEntity<?> checkBalance(
+            @RequestParam Long userId) {
+
+        if (userId == null ||
+                !acService.findUserId(userId)) {
+
+            return ResponseEntity
+                    .badRequest()
+                    .body(Map.of(
+                            "message", "UserId not found"
+                    ));
+        }
+
+        BankAccount account =
+                acService.findUser(userId);
+
+        return ResponseEntity.ok(account);
+    }
+
+
+    // =========================
+    // TRANSFER MONEY
+    // =========================
+    @PutMapping("/transfer")
+    public ResponseEntity<?> transfer(
+            @Valid @RequestBody TransferRequest data) {
+
+        String message =
+                acService.transferMoney(data);
+
+        if (message.equals("Transfer Successfully")) {
+
+            return ResponseEntity.ok(
+                    Map.of("message", message)
+            );
+        }
+
+        return ResponseEntity
+                .badRequest()
+                .body(Map.of(
+                        "message", message
+                ));
+    }
+
+
+    // =========================
+    // TRANSACTION HISTORY
+    // =========================
+    @GetMapping("/history")
+    public ResponseEntity<List<TransactionHistory>> history() {
+
+        return ResponseEntity.ok(
+                tsService.showAll()
+        );
+    }
 }

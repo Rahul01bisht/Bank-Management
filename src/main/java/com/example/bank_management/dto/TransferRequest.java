@@ -7,9 +7,11 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class DebitRequest {
-    @NotNull(message = "Send valid Your Id")
-    private Long userId;
+public class TransferRequest {
+    @NotNull(message = "Send valid Sender Id")
+    private Long senderId;
+    @NotNull(message = "Send valid Receiver Id")
+    private Long receiverId;
     @Positive(message = "Amount must be greater than 0")
     private double amount;
 }
