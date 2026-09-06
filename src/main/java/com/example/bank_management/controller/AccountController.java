@@ -17,136 +17,117 @@ import java.util.*;
 @RequestMapping("/accounts")
 public class AccountController {
 
-    @Autowired
-    private AccountService acService;
+  @Autowired
+  private AccountService acService;
 
-    @Autowired
-    private TransactionService tsService;
+  @Autowired
+  private TransactionService tsService;
 
 
     // =========================
     // CREATE ACCOUNT
     // =========================
-    @PostMapping("/create")
-    public ResponseEntity<BankAccount> create(
-            @Valid @RequestBody CreateAccountRequest data) {
+  @PostMapping("/create")
+  public ResponseEntity<BankAccount> create(
+          @Valid @RequestBody CreateAccountRequest data) {
 
-        BankAccount account = acService.addUser(data);
-
-        return ResponseEntity.ok(account);
+    BankAccount account = acService.addUser(data);
+    return ResponseEntity.ok(account);
     }
 
 
     // =========================
     // FIND ALL ACCOUNTS
     // =========================
-    @GetMapping
-    public ResponseEntity<List<BankAccount>> findAll() {
-
-        return ResponseEntity.ok(acService.findAll());
+  @GetMapping
+  public ResponseEntity<List<BankAccount>> findAll() {
+    
+    return ResponseEntity.ok(acService.findAll());
     }
 
 
     // =========================
     // CREDIT MONEY
     // =========================
-    @PutMapping("/credit")
-    public ResponseEntity<UserResponse> credit(
-            @Valid @RequestBody CreditRequest data) {
+  @PutMapping("/credit")
+  public ResponseEntity<UserResponse> credit(
+        @Valid @RequestBody CreditRequest data) {
 
-        UserResponse list =
-                acService.userCredit(data);
+    UserResponse list =
+            acService.userCredit(data);
 
-        if (list.getType() == TransactionType.FAILED) {
+    if (list.getType() == TransactionType.FAILED) {
 
-            return ResponseEntity
-                    .badRequest()
-                    .body(list);
+      return ResponseEntity
+            .badRequest()
+            .body(list);
         }
 
-        return ResponseEntity.ok(list);
-    }
+    return ResponseEntity.ok(list);
+  }
 
 
     // =========================
     // DEBIT MONEY
     // =========================
-    @PutMapping("/debit")
-    public ResponseEntity<UserResponse> debit(
-            @Valid @RequestBody DebitRequest data) {
+  @PutMapping("/debit")
+  public ResponseEntity<UserResponse> debit(
+        @Valid @RequestBody DebitRequest data) {
 
 
-        UserResponse list =
-                acService.userDebit(data);
+    UserResponse list =
+          acService.userDebit(data);
 
-        if (list.getType() == TransactionType.FAILED) {
+    if (list.getType() == TransactionType.FAILED) {
 
-            return ResponseEntity
-                    .badRequest()
-                    .body(list);
-        }
+      return ResponseEntity
+            .badRequest()
+            .body(list);
+      }
 
-        return ResponseEntity.ok(list);
-    }
+    return ResponseEntity.ok(list);
+  }
 
 
     // =========================
     // CHECK BALANCE
     // =========================
-    @GetMapping("/balance")
-    public ResponseEntity<?> checkBalance(
-            @RequestParam Long userId) {
-
-        if (userId == null ||
-                !acService.findUserId(userId)) {
-
-            return ResponseEntity
-                    .badRequest()
-                    .body(Map.of(
-                            "message", "UserId not found"
-                    ));
-        }
-
-        BankAccount account =
-                acService.findUser(userId);
-
-        return ResponseEntity.ok(account);
-    }
+  @GetMapping("/balance")
+  public ResponseEntity<?> checkBalance(
+        @RequestParam Long userId) {
+            
+      return ResponseEntity.ok(acService.findUser(userId));
+  }
 
 
     // =========================
     // TRANSFER MONEY
     // =========================
-    @PutMapping("/transfer")
-    public ResponseEntity<?> transfer(
-            @Valid @RequestBody TransferRequest data) {
+  @PutMapping("/transfer")
+  public ResponseEntity<TransferResponse> transfer(
+      @Valid @RequestBody TransferRequest data) {
 
-        String message =
-                acService.transferMoney(data);
+    TransferResponse list =
+            acService.transferMoney(data);
 
-        if (message.equals("Transfer Successfully")) {
+    if (list.getType() != TransactionType.FAILED) {
 
-            return ResponseEntity.ok(
-                    Map.of("message", message)
-            );
-        }
+        return ResponseEntity.ok(list);
+    }
 
-        return ResponseEntity
-                .badRequest()
-                .body(Map.of(
-                        "message", message
-                ));
+    return ResponseEntity
+            .badRequest()
+            .body(list);
     }
 
 
     // =========================
     // TRANSACTION HISTORY
     // =========================
-    @GetMapping("/history")
-    public ResponseEntity<List<TransactionHistory>> history() {
-
-        return ResponseEntity.ok(
+  @GetMapping("/history")
+  public ResponseEntity<List<TransactionHistory>> history() {
+    return ResponseEntity.ok(
                 tsService.showAll()
         );
-    }
+  }
 }

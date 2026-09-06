@@ -42,7 +42,7 @@ public class TransactionService{
     return list;
   }
 
-  public void saveTransfer(TransferTransaction data){
+  public TransferResponse saveTransfer(TransferTransaction data){
     TransactionHistory th = new TransactionHistory();
     th.setSenderId(data.getSenderId());
     th.setReceiverId(data.getReceiverId());
@@ -50,6 +50,8 @@ public class TransactionService{
     th.setTotal(data.getTotal());
     th.setType(data.getType());
     add(th);
+    TransferResponse list = mapOfTransferResponse(th);
+    return list;
   }
   
   public List<TransactionHistory> showAll(){
@@ -69,6 +71,19 @@ public class TransactionService{
     } else {
         list.setUserId(data.getSenderId());
     }
+    list.setAmount(data.getAmount());
+    list.setTime(data.getTime());
+    return list;
+  }
+
+  private TransferResponse mapOfTransferResponse(
+    TransactionHistory data
+  ){
+    TransferResponse list = new TransferResponse();
+    list.setTransactionId(data.getTransactionId());
+    list.setType(data.getType());
+    list.setReceiverId(data.getReceiverId());
+    list.setSenderId(data.getSenderId());
     list.setAmount(data.getAmount());
     list.setTime(data.getTime());
     return list;

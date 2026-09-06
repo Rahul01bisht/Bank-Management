@@ -2,6 +2,7 @@ package com.example.bank_management.service;
 
 import com.example.bank_management.model.*;
 import com.example.bank_management.dto.*;
+import com.example.bank_management.exeption.ResourceNotFoundException;
 import com.example.bank_management.repository.AccountRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,19 +36,22 @@ public class AccountService{
 
   // search user data
   public BankAccount findUser(Long userId){
-    return repo.findById(userId).orElse(null);
+    BankAccount data = repo
+         .findById(userId)
+         .orElseThrow(() ->
+          new ResourceNotFoundException(
+            userId +" is Not Found"
+          ));
+    return data;
   }
 
+  //getUserId  name
   private String findUserName(Long userId)
   {
     BankAccount data = findUser(userId);
     return data.getUserName();
   }
 
-  // update user balance
-  public BankAccount updateBalance(BankAccount bankAc){
-    return repo.save(bankAc);
-  }
 
   // delete user Account
   public boolean deleteUserId(Long userId){
@@ -84,7 +88,7 @@ public class AccountService{
       return response;
     }
     list.setType(TransactionType.FAILED);
-    list.setTotal(balance(data.getUserId()));
+    
     UserResponse response = tsService.saveCredit(list);
     response.setName("Not found");
     return response;
@@ -122,7 +126,7 @@ public class AccountService{
     
     if(!findUserId(data.getUserId())){
       list.setType(TransactionType.FAILED);
-    list.setTotal(balance(data.getUserId()));
+    
     UserResponse response = tsService.saveDebit(list);
     response.setName("Not found");
     return response;
@@ -145,7 +149,7 @@ public class AccountService{
 
 
   //tranfer money
-  public String transferMoney(TransferRequest data){
+  public TransferResponse transferMoney(TransferRequest data){
 
     TransferTransaction list = mapOfTransferTransaction(data);
 
@@ -160,9 +164,14 @@ public class AccountService{
             list.setTotal(balance(data.getSenderId()));
         }
 
-        tsService.saveTransfer(list);
-
-        return "Not valid account";
+        TransferResponse response = tsService.saveTransfer(list);
+      if (findUserId(data.getSenderId())) {
+         response.setName(findUserName(data.getSenderId()));
+      }else{
+         response.setName("Not found");
+      }
+      
+        return response;
     }
 
     DebitRequest debitReq = mapOfDebitRequest(data);
@@ -177,18 +186,19 @@ public class AccountService{
         list.setType(TransactionType.TRANSFER);
         list.setTotal(balance(data.getSenderId()));
 
-        tsService.saveTransfer(list);
-
-        return "Transfer Successfully";
+        TransferResponse response = tsService.saveTransfer(list);
+      response.setName(findUserName(data.getSenderId()));
+        return response;
     }
 
     // Insufficient balance
     list.setType(TransactionType.FAILED);
     list.setTotal(balance(data.getSenderId()));
 
-    tsService.saveTransfer(list);
+    TransferResponse response = tsService.saveTransfer(list);
+    response.setName(findUserName(data.getSenderId()));
 
-    return "Transfer Failed";
+    return response;
 }
 
 
