@@ -1,102 +1,115 @@
-# 🏦 Bank Management System API
+# 🏦 Bank Management System (Advanced Docs)
 
-[![Java](https://img.shields.io/badge/Java-17%2B-orange.svg)](https://www.oracle.com/java/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-brightgreen.svg)](https://spring.io/projects/spring-boot)
-[![Database](https://img.shields.io/badge/Database-MariaDB%20%2F%20MySQL-blue.svg)](https://mariadb.org/)
-[![Status](https://img.shields.io/badge/Status-In%20Development-yellow.svg)](#-roadmap)
+Comprehensive, developer-focused documentation for the Bank-Management Spring Boot service.
 
-A production-ready RESTful Bank Management System built with **Java** and **Spring Boot**. The service exposes clean endpoints to handle foundational banking workflows: account creation, credit/debit, transfers and transaction history.
+This README documents the current API surface, DTO shapes, example requests/responses, validation rules, error behavior, and recommended automation for keeping docs in sync with code.
 
 ---
 
-## 📑 Table of Contents
-
-- [Tech Stack](#-tech-stack)
-- [Architecture & Design](#-architecture--design)
-- [API Endpoints](#-api-endpoints)
-- [DTOs & Validation](#-dtos--validation)
-- [Database Schema](#-database-schema)
-- [Getting Started](#-getting-started)
-- [Testing](#-testing)
-- [Roadmap](#-roadmap)
-- [Author](#-author)
+## Quick Links
+- Source: https://github.com/Rahul01bisht/Bank-Management
+- Base API URL (default): `http://localhost:8080/accounts`
 
 ---
 
-## 🛠 Tech Stack
-
-* **Language:** Java 17+
-* **Framework:** Spring Boot 3.x
-* **Data Access:** Spring Data JPA, Hibernate
-* **Database:** MariaDB / MySQL
-* **Build Tool:** Apache Maven
-* **Architecture:** RESTful Multi-Tier Architecture
+## Table of Contents
+- [Overview](#overview)
+- [Usage & Quick Start](#usage--quick-start)
+- [Endpoints (detailed)](#endpoints-detailed)
+- [DTOs & Models](#dtos--models)
+- [Validation & Errors](#validation--errors)
+- [Transaction semantics & status codes](#transaction-semantics--status-codes)
+- [Testing examples (cURL)](#testing-examples-curl)
+- [OpenAPI / Automated docs (recommended)](#openapi--automated-docs-recommended)
+- [Developer notes & contribution checklist](#developer-notes--contribution-checklist)
+- [Changelog / Release notes](#changelog--release-notes)
 
 ---
 
-## 🏛 Architecture & Design
+## Overview
+This project is a simple bank management REST API built with Java 17 and Spring Boot. It supports:
+- Creating bank accounts
+- Crediting (deposit) and debiting (withdraw) operations
+- Peer-to-peer transfers between accounts
+- Transaction history listing
 
-The application follows the standard Spring Boot layered design pattern to enforce strict separation of concerns:
+The implementation follows a layered design (controller -> service -> repository -> DB). DTOs use Jakarta Bean Validation annotations to enforce request constraints.
 
-```text
-[ Client (Postman / Web UI) ]
-             │ HTTP (JSON)
-             ▼
-[ Controller Layer ]  ── AccountController.java (Handles HTTP requests & responses)
-             │
-             ▼
-[ Service Layer ]     ── AccountService.java    (Business logic, validations, tx management)
-             │
-             ▼
-[ Data Layer ]        ── AccountRepository.java (Spring Data JPA queries)
-             │
-             ▼
-[ Database ]          ── MariaDB / MySQL
+---
+
+## Usage & Quick Start
+1. Clone repo
+```bash
+git clone https://github.com/Rahul01bisht/Bank-Management.git
+cd Bank-Management
 ```
-
----
-
-## 🔌 API Endpoints
-
-### Base URL
-```text
-http://localhost:8080/accounts
+2. Configure your DB in `src/main/resources/application.properties` (MariaDB/MySQL)
+3. Start the app
+```bash
+./mvnw clean spring-boot:run
 ```
-
-### Endpoints Overview
-
-| Method | Endpoint | Description | Request Body |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/accounts/create` | Create a new bank account | CreateAccountRequest JSON |
-| `GET` | `/accounts` | Retrieve all accounts | None |
-| `GET` | `/accounts/balance` | Query account summary / balance (query param `userId`) | None |
-| `PUT` | `/accounts/credit` | Deposit (credit) funds into an account | CreditRequest JSON |
-| `PUT` | `/accounts/debit` | Withdraw (debit) funds from an account | DebitRequest JSON |
-| `PUT` | `/accounts/transfer` | Transfer funds between accounts | TransferRequest JSON |
-| `GET` | `/accounts/history` | List transaction history | None |
+4. API base: `http://localhost:8080/accounts`
 
 ---
 
-## 🔁 DTOs & Validation
+## Endpoints (detailed)
+All endpoints are under the `/accounts` path.
 
-The documentation below reflects the current DTOs and model field names in the project. Validation annotations are applied in DTOs (Jakarta Validation): `@NotBlank`, `@NotNull`, `@Positive`.
+### 1) Create account
+- Method: POST
+- URL: `/accounts/create`
+- Request DTO: CreateAccountRequest
+  - name (String) — @NotBlank
+  - amount (double) — @Positive (initial deposit)
+- Response: HTTP 200 OK (returns persisted BankAccount entity)
 
-#### CreateAccountRequest
-- Fields:
-  - `name` (String) - required (@NotBlank)
-  - `amount` (double) - initial deposit, must be > 0 (@Positive)
-
-Example request:
+Example request
 ```json
 {
   "name": "John Doe",
   "amount": 1000.0
 }
 ```
+Example response
+```json
+{
+  "userId": 1,
+  "userName": "John Doe",
+  "userBalance": 1000.0
+}
+```
 
-Controller response: The controller returns the persisted BankAccount entity (HTTP 200 OK) with fields: `userId`, `userName`, `userBalance`.
+Notes: Controller currently responds with the BankAccount entity. If you want 201 Created semantics, change the controller to return ResponseEntity.created(...).
 
-Example BankAccount response:
+---
+
+### 2) Get all accounts
+- Method: GET
+- URL: `/accounts`
+- Response: HTTP 200 OK — list of BankAccount
+
+Example response
+```json
+[
+  {
+    "userId": 1,
+    "userName": "John Doe",
+    "userBalance": 1000.0
+  }
+]
+```
+
+---
+
+### 3) Check balance / account summary
+- Method: GET
+- URL: `/accounts/balance?userId={id}`
+- Response: HTTP 200 OK — account object or summary
+
+Example request
+GET `/accounts/balance?userId=1`
+
+Example response
 ```json
 {
   "userId": 1,
@@ -107,30 +120,22 @@ Example BankAccount response:
 
 ---
 
-#### CreditRequest
-- Fields:
-  - `userId` (Long) - account id to credit (@NotNull)
-  - `amount` (double) - amount to credit, must be > 0 (@Positive)
+### 4) Credit (deposit)
+- Method: PUT
+- URL: `/accounts/credit`
+- Request DTO: CreditRequest
+  - userId (Long) — @NotNull
+  - amount (double) — @Positive
+- Response: HTTP 200 OK — UserResponse on success; HTTP 400 Bad Request on failure
 
-Example request:
+Example request
 ```json
 {
   "userId": 1,
   "amount": 500.0
 }
 ```
-
-Response: Returns a UserResponse DTO (HTTP 200 OK) on success, or HTTP 400 Bad Request when transaction fails.
-
-UserResponse fields:
-- `transactionId` (Long)
-- `userId` (Long)
-- `name` (String)
-- `amount` (double)
-- `type` (TransactionType) - CREDIT/DEBIT/FAILED
-- `time` (LocalDateTime)
-
-Example success response:
+Example success response
 ```json
 {
   "transactionId": 101,
@@ -144,30 +149,46 @@ Example success response:
 
 ---
 
-#### DebitRequest
-- Fields:
-  - `userId` (Long) - account id to debit (@NotNull)
-  - `amount` (double) - amount to withdraw, must be > 0 (@Positive)
+### 5) Debit (withdraw)
+- Method: PUT
+- URL: `/accounts/debit`
+- Request DTO: DebitRequest
+  - userId (Long) — @NotNull
+  - amount (double) — @Positive
+- Response: HTTP 200 OK — UserResponse on success; HTTP 400 Bad Request on failure
 
-Example request:
+Example request
 ```json
 {
   "userId": 1,
   "amount": 200.0
 }
 ```
-
-Response: Returns a UserResponse DTO (HTTP 200 OK) on success, or HTTP 400 Bad Request when transaction fails (e.g., insufficient funds).
+Example failure (insufficient funds) — HTTP 400
+```json
+{
+  "transactionId": null,
+  "userId": 1,
+  "name": "John Doe",
+  "amount": 200.0,
+  "type": "FAILED",
+  "time": "2026-09-06T13:00:00",
+  "message": "Insufficient funds"
+}
+```
 
 ---
 
-#### TransferRequest
-- Fields:
-  - `senderId` (Long) - account id of sender (@NotNull)
-  - `receiverId` (Long) - account id of receiver (@NotNull)
-  - `amount` (double) - amount to transfer, must be > 0 (@Positive)
+### 6) Transfer
+- Method: PUT
+- URL: `/accounts/transfer`
+- Request DTO: TransferRequest
+  - senderId (Long) — @NotNull
+  - receiverId (Long) — @NotNull
+  - amount (double) — @Positive
+- Response: HTTP 200 OK — TransferResponse on success; HTTP 400 Bad Request on failure
 
-Example request:
+Example request
 ```json
 {
   "senderId": 1,
@@ -175,19 +196,7 @@ Example request:
   "amount": 25.0
 }
 ```
-
-Response: Returns a TransferResponse DTO (HTTP 200 OK) on success, or HTTP 400 Bad Request on failure.
-
-TransferResponse fields:
-- `transactionId` (Long)
-- `senderId` (Long)
-- `receiverId` (Long)
-- `name` (String) — account holder name (if provided by service)
-- `amount` (double)
-- `type` (TransactionType)
-- `time` (LocalDateTime)
-
-Example success response:
+Example success response
 ```json
 {
   "transactionId": 200,
@@ -199,20 +208,28 @@ Example success response:
   "time": "2026-09-06T13:00:00"
 }
 ```
+Example failure response (bad request / failed transfer)
+```json
+{
+  "transactionId": null,
+  "senderId": 1,
+  "receiverId": 2,
+  "name": "John Doe",
+  "amount": 25.0,
+  "type": "FAILED",
+  "time": "2026-09-06T13:02:00",
+  "message": "Receiver not found"
+}
+```
 
 ---
 
-#### TransactionHistory (model)
-The `TransactionHistory` entity contains recorded transactions. Fields:
-- `transactionId` (Long)
-- `senderId` (Long)
-- `receiverId` (Long)
-- `amount` (double)
-- `type` (TransactionType) — stored as String
-- `total` (double) — balance / total after transaction if provided
-- `time` (LocalDateTime)
+### 7) Transaction history
+- Method: GET
+- URL: `/accounts/history`
+- Response: HTTP 200 OK — list of TransactionHistory
 
-Example response from `/accounts/history`:
+Example response
 ```json
 [
   {
@@ -238,105 +255,204 @@ Example response from `/accounts/history`:
 
 ---
 
-## 🗄 Database Schema
+## DTOs & Models (current code)
+This section mirrors the DTO and model classes found in `src/main/java/com/example/bank_management`.
 
-The primary persistence entity is mapped to the `bank_account` table and the fields reflect the `BankAccount` model:
+- CreateAccountRequest
+  - name: String (@NotBlank)
+  - amount: double (@Positive)
 
-```sql
-CREATE TABLE bank_account (
-    user_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_name VARCHAR(100) NOT NULL,
-    user_balance DECIMAL(15, 2) NOT NULL DEFAULT 0.00
-);
+- CreditRequest
+  - userId: Long (@NotNull)
+  - amount: double (@Positive)
+
+- DebitRequest
+  - userId: Long (@NotNull)
+  - amount: double (@Positive)
+
+- TransferRequest
+  - senderId: Long (@NotNull)
+  - receiverId: Long (@NotNull)
+  - amount: double (@Positive)
+
+- UserResponse
+  - transactionId: Long
+  - userId: Long
+  - name: String
+  - amount: double
+  - type: TransactionType
+  - time: LocalDateTime
+
+- TransferResponse
+  - transactionId: Long
+  - senderId: Long
+  - receiverId: Long
+  - name: String
+  - amount: double
+  - type: TransactionType
+  - time: LocalDateTime
+
+- BankAccount (entity)
+  - userId: Long (PK)
+  - userName: String
+  - userBalance: double
+
+- TransactionHistory (entity)
+  - transactionId: Long (PK)
+  - senderId: Long
+  - receiverId: Long
+  - amount: double
+  - type: TransactionType (Enum stored as String)
+  - total: double
+  - time: LocalDateTime (set at @PrePersist)
+
+---
+
+## Validation & Errors
+- DTOs use Jakarta Validation (annotated with `@NotBlank`, `@NotNull`, `@Positive`).
+- Validation failures will produce HTTP 400 responses (Spring Boot's default BindingResult/MethodArgumentNotValid handling). Consider adding a `@ControllerAdvice` to unify error JSON shapes.
+- Business errors (insufficient funds, missing accounts) are modeled in the service layer and returned from controllers as DTOs with `type == TransactionType.FAILED` and a 400 status.
+
+Suggested unified error JSON (ControllerAdvice-friendly)
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Insufficient funds",
+  "path": "/accounts/debit"
+}
 ```
 
 ---
 
-## 🚀 Getting Started
-
-### Prerequisites
-
-Ensure you have installed:
-* [JDK 17 or higher](https://www.oracle.com/java/technologies/downloads/)
-* [MariaDB Server](https://mariadb.org/download/) or MySQL
-* [Maven 3.8+](https://maven.apache.org/) (optional, Maven Wrapper included)
-* [Git](https://git-scm.com/)
+## Transaction semantics & status codes
+- Successful operations: 200 OK (controller currently returns 200 for create as well)
+- Validation or business failures: 400 Bad Request
+- Consider adding: 201 Created for create, 404 Not Found for missing accounts, 500 for unexpected server errors
 
 ---
 
-### Configuration & Run
-
-1. Clone the repository:
-```bash
-git clone https://github.com/Rahul01bisht/Bank-Management.git
-cd Bank-Management
-```
-
-2. Create the database:
-```sql
-CREATE DATABASE bank_db;
-```
-
-3. Configure `src/main/resources/application.properties` with your DB credentials.
-
-4. Start the app:
-```bash
-./mvnw clean spring-boot:run
-```
-
-Server starts on port `8080` by default.
-
----
-
-## 🧪 Testing
-
-Use curl / Postman to test endpoints. Examples:
-
-Create account:
+## Testing examples (cURL)
+Create account
 ```bash
 curl -X POST http://localhost:8080/accounts/create \
   -H "Content-Type: application/json" \
   -d '{"name":"John Doe","amount":1000.0}'
 ```
 
-Credit:
+Credit
 ```bash
 curl -X PUT http://localhost:8080/accounts/credit \
   -H "Content-Type: application/json" \
   -d '{"userId":1,"amount":500.0}'
 ```
 
-Transfer:
+Debit
+```bash
+curl -X PUT http://localhost:8080/accounts/debit \
+  -H "Content-Type: application/json" \
+  -d '{"userId":1,"amount":200.0}'
+```
+
+Transfer
 ```bash
 curl -X PUT http://localhost:8080/accounts/transfer \
   -H "Content-Type: application/json" \
   -d '{"senderId":1,"receiverId":2,"amount":25.0}'
 ```
 
-History:
+History
 ```bash
 curl http://localhost:8080/accounts/history
 ```
 
 ---
 
-## 📈 Roadmap
+## OpenAPI / Automated docs (recommended)
+To keep documentation in sync with DTOs and controllers, I strongly recommend exposing an OpenAPI document from the running application and using a generator in CI to produce human-friendly docs.
 
-- [ ] Atomic peer-to-peer money transfers between accounts
-- [ ] Ledger-backed transaction history logs
-- [ ] Bean validation (`@Valid`, `@NotNull`, `@Positive`)
-- [ ] Centralized `@ControllerAdvice` global exception handling
-- [ ] Soft deletion and profile update routes
-- [ ] Spring Security integration with JWT authentication
+1) Add springdoc to `pom.xml` dependencies
+```xml
+<dependency>
+  <groupId>org.springdoc</groupId>
+  <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+  <version>2.1.0</version>
+</dependency>
+```
+This exposes `/v3/api-docs` and Swagger UI at `/swagger-ui.html`.
 
----
+2) Add a GitHub Actions workflow to generate docs and commit them (example below).
 
-## 👨‍💻 Author
-
-* **Rahul Bisht** - [GitHub Profile](https://github.com/Rahul01bisht)
-
----
+Example workflow `.github/workflows/generate-api-docs.yml` (high-level)
+```yaml
+name: Generate API docs
+on:
+  push:
+    paths:
+      - 'src/**'
+      - 'pom.xml'
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - run: mvn -DskipTests package -q
+      - run: nohup java -jar target/*.jar & sleep 8
+      - run: |
+          for i in {1..30}; do
+            if curl -sSf http://localhost:8080/v3/api-docs -o openapi.json; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - run: |
+          docker run --rm -v ${PWD}:/local openapitools/openapi-generator-cli generate \
+            -i /local/openapi.json -g markdown -o /local/docs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "actions@github.com"
+          git add docs README.md || true
+          git commit -m "chore(docs): update API docs" || echo "No changes"
+          git push
+```
 
 Notes:
-- This README was synchronized with current DTOs and entity fields (CreateAccountRequest, CreditRequest, DebitRequest, TransferRequest, TransferResponse, UserResponse, TransactionHistory, BankAccount).
-- If you'd like, I can add a GitHub Action or small script to regenerate or verify README snippets automatically when DTOs change — tell me if you want that and I’ll add it.
+- The workflow above runs the application in CI to fetch live OpenAPI JSON and then generates Markdown docs to `docs/`. You can adapt it to replace README sections or produce a separate `docs/API.md`.
+- If starting the app in CI proves flaky, consider using maven plugins or a compile-time generator that introspects annotations (less common with Spring but possible).
+
+---
+
+## Developer notes & contribution checklist
+When you change DTOs/controllers/services, update the docs as follows:
+1. If you have automated docs enabled: ensure build passes and the workflow can run.
+2. If not automated: update README sections under `DTOs & Models` and the endpoint payloads.
+3. Add or update integration tests (recommended) that exercise request/response shapes and error cases.
+4. Add `@Operation` and `@Schema` annotations (springdoc) to controllers and DTOs to improve generated docs.
+
+Suggested PR checklist (add to `.github/PULL_REQUEST_TEMPLATE.md` if desired):
+- [ ] Code compiles and unit tests pass
+- [ ] DTO renames/fields documented in README or OpenAPI
+- [ ] Added/updated API examples (curl/Postman)
+- [ ] If behavior changes: added migration notes in CHANGELOG
+
+---
+
+## Changelog / Release notes
+Keep a `CHANGELOG.md` for major behavioral changes (schema, DTO renames, response shape changes). For small teams, reference PRs in changelog entries.
+
+---
+
+## Contact / Author
+* **Rahul Bisht** — https://github.com/Rahul01bisht
+
+---
+
+If you want, I can now:
+- Add the springdoc dependency to `pom.xml` and create the GitHub Actions workflow to auto-generate docs.
+- Add a `ControllerAdvice` to normalize validation and business error JSON shapes.
+- Generate a separate `docs/API.md` and link it from README (recommended if docs are large).
+
+Tell me which of the above follow-ups you want me to implement and I'll commit them.
