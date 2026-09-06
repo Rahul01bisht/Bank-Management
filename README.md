@@ -5,7 +5,7 @@
 [![Database](https://img.shields.io/badge/Database-MariaDB%20%2F%20MySQL-blue.svg)](https://mariadb.org/)
 [![Status](https://img.shields.io/badge/Status-In%20Development-yellow.svg)](#-roadmap)
 
-A production-ready RESTful Bank Management System built with **Java** and **Spring Boot**. The service exposes clean endpoints to handle foundational banking workflows, including account initialization, real-time balance queries, and atomic credit/debit transactions.
+A production-ready RESTful Bank Management System built with **Java** and **Spring Boot**. The service exposes clean endpoints to handle foundational banking workflows, including account initializa[...]
 
 ---
 
@@ -74,6 +74,8 @@ http://localhost:8080/accounts
 | `GET` | `/accounts/balance` | Query balance via query parameter | None (`?userId={id}`) |
 | `PUT` | `/accounts/credit` | Deposit funds into an account | Transaction JSON |
 | `PUT` | `/accounts/debit` | Withdraw funds from an account | Transaction JSON |
+| `PUT` | `/accounts/transfer` | Transfer funds between accounts | Transfer JSON |
+| `GET` | `/accounts/history` | List transaction history | None |
 
 ---
 
@@ -175,98 +177,75 @@ http://localhost:8080/accounts
 
 ---
 
-## 🗄 Database Schema
+#### 6. Transfer Money
+* **Endpoint:** `PUT /accounts/transfer`
+* **Content-Type:** `application/json`
+* **Description:** Transfer money from one account to another. Returns a TransferResponse indicating success or failure. On failure, the API returns `400 Bad Request` with details.
 
-The primary persistence entity is mapped to the `bank_account` table:
-
-```sql
-CREATE TABLE bank_account (
-    user_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_name VARCHAR(100) NOT NULL,
-    user_balance DECIMAL(15, 2) NOT NULL DEFAULT 0.00
-);
+**Request:**
+```json
+{
+  "fromUserId": 1,
+  "toUserId": 2,
+  "amount": 25.0,
+  "description": "Payment"
+}
 ```
 
----
+**Response (`200 OK`):**
+```json
+{
+  "transactionId": 123,
+  "fromUserId": 1,
+  "toUserId": 2,
+  "amount": 25.0,
+  "status": "SUCCESS",
+  "message": "Transfer completed"
+}
+```
 
-## 🚀 Getting Started
-
-### Prerequisites
-
-Ensure you have installed:
-* [JDK 17 or higher](https://www.oracle.com/java/technologies/downloads/)
-* [MariaDB Server](https://mariadb.org/download/) or MySQL
-* [Maven 3.8+](https://maven.apache.org/) (optional, Maven Wrapper included)
-* [Git](https://git-scm.com/)
-
----
-
-### Configuration
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Rahul01bisht/bank-management.git
-   cd bank-management
-   ```
-
-2. Create the database in MariaDB/MySQL:
-   ```sql
-   CREATE DATABASE bank_db;
-   ```
-
-3. Update your database credentials in `src/main/resources/application.properties`:
-   ```properties
-   spring.datasource.url=jdbc:mariadb://localhost:3306/bank_db
-   spring.datasource.username=YOUR_DB_USERNAME
-   spring.datasource.password=YOUR_DB_PASSWORD
-   spring.datasource.driver-class-name=org.mariadb.jdbc.Driver
-
-   spring.jpa.hibernate.ddl-auto=update
-   spring.jpa.show-sql=true
-   spring.jpa.properties.hibernate.format_sql=true
-   ```
-
----
-
-### Installation & Run
-
-* **Linux / macOS:**
-  ```bash
-  ./mvnw clean spring-boot:run
-  ```
-
-* **Windows:**
-  ```cmd
-  mvnw.cmd clean spring-boot:run
-  ```
-
-The server will start on port `8080` by default.
-
----
-
-## 🧪 Testing
-
-You can verify the endpoints using cURL or import them directly into Postman / Thunder Client.
-
-**Quick cURL Balance Verification:**
+**Sample curl:**
 ```bash
-curl -X GET "http://localhost:8080/accounts/balance?userId=1"
+curl -X PUT http://localhost:8080/accounts/transfer \
+  -H "Content-Type: application/json" \
+  -d '{"fromUserId":1,"toUserId":2,"amount":25.0,"description":"Payment"}'
 ```
 
 ---
 
-## 📈 Roadmap
+#### 7. Transaction History
+* **Endpoint:** `GET /accounts/history`
+* **Description:** Returns a list of transaction history entries (TransactionHistory). This endpoint provides an overview of all transactions recorded by the system.
 
-- [ ] Atomic peer-to-peer money transfers between accounts
-- [ ] Ledger-backed transaction history logs
-- [ ] Bean validation (`@Valid`, `@NotNull`, `@PositiveOrZero`)
-- [ ] Centralized `@ControllerAdvice` global exception handling
-- [ ] Soft deletion and profile update routes
-- [ ] Spring Security integration with JWT authentication
+**Response (`200 OK`):**
+```json
+[
+  {
+    "transactionId": 101,
+    "userId": 1,
+    "type": "CREDIT",
+    "amount": 500.0,
+    "timestamp": "2026-09-06T12:34:56Z",
+    "description": "Salary"
+  },
+  {
+    "transactionId": 102,
+    "userId": 1,
+    "type": "DEBIT",
+    "amount": 50.0,
+    "timestamp": "2026-09-06T13:00:00Z",
+    "description": "ATM withdrawal"
+  }
+]
+```
+
+**Sample curl:**
+```bash
+curl http://localhost:8080/accounts/history
+```
 
 ---
 
-## 👨‍💻 Author
-
-* **Rahul Bisht** - [GitHub Profile](https://github.com/Rahul01bisht)
-* 
+Notes:
+- Request/response DTO field names in these examples are inferred from the controller methods and common naming. Adjust JSON field names if your DTOs differ.
+- The API returns 400 Bad Request for operations that fail validation or business checks (e.g., insufficient funds).
