@@ -3,6 +3,9 @@ package com.example.bank_management.service;
 import com.example.bank_management.model.*;
 import com.example.bank_management.dto.*;
 import com.example.bank_management.exeption.ResourceNotFoundException;
+import com.example.bank_management.exeption.LowBalanceException;
+import com.example.bank_management.exeption.SameAccountTransferException;
+
 import com.example.bank_management.repository.AccountRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,23 +20,27 @@ public class AccountService{
   private AccountRepository repo;
   @Autowired
   private TransactionService tsService;
+  
 
   // add user
   public BankAccount addUser(CreateAccountRequest cAR){
     BankAccount bA = mapOfCreateAccount(cAR);
     return repo.save(bA);
   }
+  
 
   // find all user
   public List<BankAccount> findAll(){
     return repo.findAll();
   }
+  
 
   // search user id
   public boolean findUserId(Long userId){
     return repo.existsById(userId);
   }
 
+  
   // search user data
   public BankAccount findUser(Long userId){
     BankAccount data = repo
@@ -44,6 +51,7 @@ public class AccountService{
           ));
     return data;
   }
+  
 
   //getUserId  name
   private String findUserName(Long userId)
@@ -61,12 +69,14 @@ public class AccountService{
     }
     return false;
   }
+  
 
   // check balance
   public double balance(Long userId){
     BankAccount data = findUser(userId);
     return data.getUserBalance();
   }
+  
 
   //credit money
   private void credit(CreditRequest creditReq){
@@ -80,20 +90,29 @@ public class AccountService{
     // when user do credit
   public UserResponse userCredit(CreditRequest data){
     CreditTransaction list = mapOfCreditTransaction(data);
-    if(findUserId(data.getUserId())){
-      credit(data);
-      list.setTotal(balance(data.getUserId()));
-      UserResponse response = tsService.saveCredit(list);
-      response.setName(findUserName(data.getUserId()));
-      return response;
-    }
-    list.setType(TransactionType.FAILED);
-    
-    UserResponse response = tsService.saveCredit(list);
-    response.setName("Not found");
-    return response;
-  }
+    if(!findUserId(data.getUserId())){
 
+      list.setType(TransactionType.FAILED);
+    
+      UserResponse response = tsService.saveCredit(list);
+      response.setName("Not found");
+      
+      throw new ResourceNotFoundException(
+        data.getUserId() + " Not Found"
+      );
+      
+    }
+
+    credit(data);
+    list.setTotal(balance(data.getUserId()));
+    UserResponse response = 
+      tsService.saveCredit(list);
+    response.setName(
+      findUserName(data.getUserId())
+    );
+    return response;
+
+  }
 
 
   //debit money
@@ -104,48 +123,48 @@ public class AccountService{
   repo.save(data);
   }
 
-// valide debit check
-  public boolean isValidDebit(DebitRequest debitReq){
+  
+  // valide debit check
+  private boolean isValidBalance(DebitRequest debitReq){
     return balance(debitReq.getUserId()) >= debitReq.getAmount();
   }
-
-  
-  // Check money is debit
-  public boolean checkDebit(DebitRequest debitReq){
-    if(isValidDebit(debitReq)){
-      debit(debitReq);
-      return true;
-    }
-    return false;
-    }
 
 
   // when user do debit
   public UserResponse userDebit(DebitRequest data){
-    DebitTransaction list = mapOfDebitTransaction(data);
-    
+    DebitTransaction list = 
+      mapOfDebitTransaction(data);
+
+    // Validate user id 
     if(!findUserId(data.getUserId())){
       list.setType(TransactionType.FAILED);
     
-    UserResponse response = tsService.saveDebit(list);
-    response.setName("Not found");
-    return response;
+      UserResponse response = 
+        tsService.saveDebit(list);
+      response.setName("Not found");
+      
+      throw new ResourceNotFoundException(
+        data.getUserId() + " Not Found"
+      );
     }
-    
-    if(checkDebit(data)){
+
+    //Validate Account Money
+    if(!isValidBalance(data)){
+      list.setType(TransactionType.FAILED);
       list.setTotal(balance(data.getUserId()));
-      UserResponse response = tsService.saveDebit(list);
-      response.setName(findUserName(data.getUserId()));
-      return response;
+      tsService.saveDebit(list);
+
+      throw new LowBalanceException("You have low balance in " + data.getUserId()+" your Account!");
     }
-    list.setType(TransactionType.FAILED);
+
+    //Debit Money
+    debit(data);
     list.setTotal(balance(data.getUserId()));
-    UserResponse response = tsService.saveDebit(list);
+    UserResponse response = 
+      tsService.saveDebit(list);
     response.setName(findUserName(data.getUserId()));
     return response;
   }
-
-  
 
 
   //tranfer money
@@ -153,52 +172,58 @@ public class AccountService{
 
     TransferTransaction list = mapOfTransferTransaction(data);
 
-    // Validate accounts
-    if (!findUserId(data.getSenderId())
-            || !findUserId(data.getReceiverId())
-            || data.getReceiverId().equals(data.getSenderId())) {
-
-        list.setType(TransactionType.FAILED);
-
-        if (findUserId(data.getSenderId())) {
-            list.setTotal(balance(data.getSenderId()));
-        }
-
-        TransferResponse response = tsService.saveTransfer(list);
-      if (findUserId(data.getSenderId())) {
-         response.setName(findUserName(data.getSenderId()));
-      }else{
-         response.setName("Not found");
-      }
-      
-        return response;
+    // Validate sender Id
+    if (!findUserId(data.getSenderId())){
+      list.setType(TransactionType.FAILED);
+      tsService.saveTransfer(list);
+      throw new ResourceNotFoundException("Your Sender Id "+ data.getSenderId() +" not found");
     }
 
+    // Validate Receiver Id
+    if(!findUserId(data.getReceiverId())){
+      list.setType(TransactionType.FAILED);
+      list.setTotal(balance(data.getSenderId()));
+      tsService.saveTransfer(list);
+      throw new ResourceNotFoundException("Your Receiver Id "+ data.getReceiverId() +" not found");
+    }
+         
+    //Validate same Account Tranfer
+    if(data.getReceiverId().equals(data.getSenderId()))
+      {
+        list.setType(TransactionType.FAILED);
+        list.setTotal(balance(data.getSenderId()));
+        tsService.saveTransfer(list);
+        
+        throw new SameAccountTransferException("You are not tranfer money in Your same Account");
+    }
+
+    //making debit and credit Request
     DebitRequest debitReq = mapOfDebitRequest(data);
     CreditRequest creditReq = mapOfCreditRequest(data);
 
     // Check sender balance and debit
-    if (checkDebit(debitReq)) {
+    if (!isValidBalance(debitReq)) {
 
-        // Credit receiver
-        credit(creditReq);
+      // Insufficient balance
+      list.setType(TransactionType.FAILED);
+      list.setTotal(balance(data.getSenderId()));
 
-        list.setType(TransactionType.TRANSFER);
-        list.setTotal(balance(data.getSenderId()));
+      tsService.saveTransfer(list);
 
-        TransferResponse response = tsService.saveTransfer(list);
-      response.setName(findUserName(data.getSenderId()));
-        return response;
+      throw new LowBalanceException("Your balance is low");
     }
 
-    // Insufficient balance
-    list.setType(TransactionType.FAILED);
+    // Credit receiver
+    debit(debitReq);
+    credit(creditReq);
+
     list.setTotal(balance(data.getSenderId()));
 
-    TransferResponse response = tsService.saveTransfer(list);
-    response.setName(findUserName(data.getSenderId()));
-
+    TransferResponse response =
+      tsService.saveTransfer(list);
+     response.setName(findUserName(data.getSenderId()));
     return response;
+    
 }
 
 
@@ -209,12 +234,14 @@ public class AccountService{
     return bA;
   }
 
+  
   private CreditRequest mapOfCreditRequest(TransferRequest data){
     CreditRequest creditReq = new CreditRequest();
     creditReq.setUserId(data.getReceiverId());
   creditReq.setAmount(data.getAmount());
     return creditReq;
   }
+  
 
   private DebitRequest mapOfDebitRequest(TransferRequest data){
     DebitRequest debitReq = new DebitRequest();
@@ -222,6 +249,7 @@ public class AccountService{
   debitReq.setAmount(data.getAmount());
     return debitReq;
   }
+  
 
   private CreditTransaction mapOfCreditTransaction (CreditRequest data){
     CreditTransaction list = new CreditTransaction();
@@ -229,6 +257,7 @@ public class AccountService{
     list.setSenderId(data.getUserId());
     return list;
   }
+  
 
     private DebitTransaction mapOfDebitTransaction (DebitRequest data){
     DebitTransaction list = new DebitTransaction();
@@ -236,6 +265,7 @@ public class AccountService{
     list.setReceiverId(data.getUserId());
     return list;
     }
+  
 
     private TransferTransaction mapOfTransferTransaction (TransferRequest data){
     TransferTransaction list = new TransferTransaction();
@@ -244,6 +274,5 @@ public class AccountService{
     list.setReceiverId(data.getReceiverId());
     return list;
     }
-
   
 }

@@ -19,14 +19,12 @@ public class AccountController {
 
   @Autowired
   private AccountService acService;
-
   @Autowired
   private TransactionService tsService;
 
 
-    // =========================
-    // CREATE ACCOUNT
-    // =========================
+  
+  // CREATE NEW ACCOUNT
   @PostMapping("/create")
   public ResponseEntity<BankAccount> create(
           @Valid @RequestBody CreateAccountRequest data) {
@@ -36,9 +34,8 @@ public class AccountController {
     }
 
 
-    // =========================
-    // FIND ALL ACCOUNTS
-    // =========================
+  
+  // FIND ALL ACCOUNTS
   @GetMapping
   public ResponseEntity<List<BankAccount>> findAll() {
     
@@ -46,9 +43,8 @@ public class AccountController {
     }
 
 
-    // =========================
-    // CREDIT MONEY
-    // =========================
+    
+  // CREDIT MONEY
   @PutMapping("/credit")
   public ResponseEntity<UserResponse> credit(
         @Valid @RequestBody CreditRequest data) {
@@ -56,42 +52,25 @@ public class AccountController {
     UserResponse list =
             acService.userCredit(data);
 
-    if (list.getType() == TransactionType.FAILED) {
-
-      return ResponseEntity
-            .badRequest()
-            .body(list);
-        }
-
     return ResponseEntity.ok(list);
   }
 
 
-    // =========================
-    // DEBIT MONEY
-    // =========================
+
+  // DEBIT MONEY
   @PutMapping("/debit")
   public ResponseEntity<UserResponse> debit(
         @Valid @RequestBody DebitRequest data) {
 
-
     UserResponse list =
           acService.userDebit(data);
-
-    if (list.getType() == TransactionType.FAILED) {
-
-      return ResponseEntity
-            .badRequest()
-            .body(list);
-      }
-
+    
     return ResponseEntity.ok(list);
   }
 
 
-    // =========================
-    // CHECK BALANCE
-    // =========================
+  
+  // CHECK BALANCE
   @GetMapping("/balance")
   public ResponseEntity<?> checkBalance(
         @RequestParam Long userId) {
@@ -100,9 +79,8 @@ public class AccountController {
   }
 
 
-    // =========================
-    // TRANSFER MONEY
-    // =========================
+
+  // TRANSFER MONEY
   @PutMapping("/transfer")
   public ResponseEntity<TransferResponse> transfer(
       @Valid @RequestBody TransferRequest data) {
@@ -110,20 +88,13 @@ public class AccountController {
     TransferResponse list =
             acService.transferMoney(data);
 
-    if (list.getType() != TransactionType.FAILED) {
+    return ResponseEntity.ok(list);
 
-        return ResponseEntity.ok(list);
-    }
-
-    return ResponseEntity
-            .badRequest()
-            .body(list);
     }
 
 
-    // =========================
-    // TRANSACTION HISTORY
-    // =========================
+
+  // TRANSACTION HISTORY
   @GetMapping("/history")
   public ResponseEntity<List<TransactionHistory>> history() {
     return ResponseEntity.ok(
