@@ -1,733 +1,416 @@
-🏦 Bank Management System
+# 🏦 Bank Management System REST API
 
-A RESTful Bank Management System built with Java 21, Spring Boot, Spring Data JPA, and MariaDB/MySQL.
+[![Java](https://img.shields.io/badge/Java-21-orange.svg?style=flat-square&logo=openjdk)](https://www.oracle.com/java/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.3-brightgreen.svg?style=flat-square&logo=springboot)](https://spring.io/projects/spring-boot)
+[![Database](https://img.shields.io/badge/Database-MariaDB%20%2F%20MySQL-003545.svg?style=flat-square&logo=mariadb)](https://mariadb.org/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Active%20Development-yellow.svg?style=flat-square)](#-roadmap)
 
-This project provides APIs for creating bank accounts, checking balances, depositing and withdrawing money, transferring money between accounts, viewing transaction history, and handling errors using custom exceptions and a global exception handler.
-
----
-
-📌 Project Overview
-
-The Bank Management System follows a layered Spring Boot architecture:
-
-Client / Postman / Frontend
-            │
-            ▼
-     AccountController
-            │
-            ▼
-       AccountService
-            │
-       ┌────┴────┐
-       ▼         ▼
-AccountRepository  TransactionService
-       │               │
-       ▼               ▼
-    BankAccount   TransactionRepository
-                       │
-                       ▼
-                    Database
-
-The application separates:
-
-- Controller → Handles HTTP requests and responses
-- Service → Contains business logic
-- Repository → Communicates with the database
-- Model → Database entities and enums
-- DTO → Request and response data structures
-- Exception → Custom exceptions and centralized error handling
+A clean, robust, multi-tier RESTful banking backend engineered with **Java 21**, **Spring Boot 3.5.3**, **Spring Data JPA**, and **MariaDB / MySQL**. It provides end-to-end banking capabilities—including account creation, atomic deposits, withdrawals, peer-to-peer fund transfers, full transaction auditing, and centralized validation error handling.
 
 ---
 
-✨ Features
+## 📑 Table of Contents
 
-- ✅ Create a new bank account
-- ✅ Get all bank accounts
-- ✅ Find an account and check balance
-- ✅ Credit/deposit money
-- ✅ Debit/withdraw money
-- ✅ Transfer money between two accounts
-- ✅ Validate insufficient balance
-- ✅ Prevent transfer to the same account
-- ✅ Store transaction history
-- ✅ View all transactions
-- ✅ Custom exceptions
-- ✅ Global exception handling
-- ✅ Jakarta Bean Validation
-- ✅ Structured error responses
-- ✅ Transaction status using "TransactionType"
-
----
-
-🛠️ Technologies Used
-
-Technology| Purpose
-Java 21| Programming language
-Spring Boot 3.5.3| Backend framework
-Spring Web| REST APIs
-Spring Data JPA| Database operations
-Hibernate| ORM
-MariaDB / MySQL| Database
-Jakarta Validation| Request validation
-Lombok| Getters, setters and boilerplate reduction
-Maven| Build and dependency management
-Git & GitHub| Version control
-Postman / cURL| API testing
+- [Key Features](#-key-features)
+- [System Architecture](#-system-architecture)
+- [Tech Stack](#-tech-stack)
+- [Project Directory Structure](#-project-directory-structure)
+- [Database & Data Models](#-database--data-models)
+- [API Reference & Documentation](#-api-reference--documentation)
+  - [1. Create Account](#1-create-account)
+  - [2. List All Accounts](#2-list-all-accounts)
+  - [3. Check Account Balance](#3-check-account-balance)
+  - [4. Deposit Funds (Credit)](#4-deposit-funds-credit)
+  - [5. Withdraw Funds (Debit)](#5-withdraw-funds-debit)
+  - [6. Transfer Funds (P2P)](#6-transfer-funds-p2p)
+  - [7. Transaction Audit History](#7-transaction-audit-history)
+- [Validation & Error Handling](#-validation--error-handling)
+- [End-to-End Walkthrough Flow](#-end-to-end-walkthrough-flow)
+- [Getting Started](#-getting-started)
+- [Roadmap](#-roadmap)
+- [Author & Acknowledgments](#-author--acknowledgments)
 
 ---
 
-📁 Project Structure
+## ✨ Key Features
 
+- **Account Lifecycle Management:** Register user accounts with baseline validation and auto-allocated balances.
+- **Atomic Financial Operations:** Deposit, withdraw, and perform peer-to-peer balance reallocations.
+- **Rigorous Business Validations:**
+  - Balance safety checks before debit/transfer (`LowBalanceException`).
+  - Guards against transferring money to the exact same account (`SameAccountTransferException`).
+  - Explicit missing resource handling (`ResourceNotFoundException`).
+- **Comprehensive Audit Trail:** Automatically logs every transaction (`CREDIT`, `DEBIT`, `TRANSFER`) with timestamps and running totals.
+- **Strict Data Contracts (DTO Pattern):** Separates database entities from inbound request/outbound response payloads.
+- **Centralized Exception Interception:** Utilizes `@RestControllerAdvice` to convert runtime exceptions and Jakarta bean validation errors into predictable, client-friendly JSON.
+
+---
+
+## 🏛 System Architecture
+
+The project enforces clean domain separation across layers:
+
+```text
+Client (Browser / Postman / Frontend)
+                 │ HTTP (JSON)
+                 ▼
+     [ AccountController ] ────────── Validates request schemas via @Valid
+                 │
+                 ▼
+       [ AccountService ]  ────────── Executes core business rules, checks balances
+                 │
+       ┌─────────┴─────────┐
+       ▼                   ▼
+[ AccountRepository ]   [ TransactionService ]
+       │                   │
+       ▼                   ▼
+  (BankAccount)     [ TransactionRepository ]
+                           │
+                           ▼
+                 (TransactionHistory)
+                           │
+                           ▼
+             [ MariaDB / MySQL Database ]
+```
+
+### Complete Fund Transfer Processing Flow
+
+```text
+POST /accounts/transfer
+        │
+        ▼
+AccountController.transfer()
+        │
+        ▼
+AccountService.transfer()
+   ├── 1. Validate sender existence
+   ├── 2. Validate receiver existence
+   ├── 3. Ensure sender != receiver
+   ├── 4. Check available funds
+   ├── 5. Deduct amount from sender
+   └── 6. Credit amount to receiver
+        │
+        ▼
+TransactionService.recordTransfer()
+        │
+        ▼
+Save entry in TransactionHistory table
+        │
+        ▼
+Return structured TransferResponse (200 OK)
+```
+
+---
+
+## 🛠 Tech Stack
+
+| Component | Technology | Version / Specification |
+| :--- | :--- | :--- |
+| **Language** | Java | 21 (LTS) |
+| **Framework** | Spring Boot | 3.5.3 |
+| **Web Layer** | Spring Web | MVC / REST Controller |
+| **Persistence** | Spring Data JPA / Hibernate | Object-Relational Mapping (ORM) |
+| **Database** | MariaDB / MySQL | Relational RDBMS |
+| **Validation** | Jakarta Bean Validation | Schema validation (`@NotNull`, `@Positive`, etc.) |
+| **Utilities** | Lombok | `@Data`, `@NoArgsConstructor`, `@AllArgsConstructor` |
+| **Build & Tooling** | Apache Maven | Wrapper included (`mvnw` / `mvnw.cmd`) |
+
+---
+
+## 📁 Project Directory Structure
+
+```text
 bank-management/
 │
 ├── src/
 │   ├── main/
-│   │   ├── java/
-│   │   │   └── com/
-│   │   │       └── example/
-│   │   │           └── bank_management/
-│   │   │
-│   │   │               ├── BankManagementApplication.java
-│   │   │               │
-│   │   │               ├── controller/
-│   │   │               │   └── AccountController.java
-│   │   │               │
-│   │   │               ├── dto/
-│   │   │               │   ├── CreateAccountRequest.java
-│   │   │               │   ├── CreditRequest.java
-│   │   │               │   ├── DebitRequest.java
-│   │   │               │   ├── TransferRequest.java
-│   │   │               │   ├── CreditTransaction.java
-│   │   │               │   ├── DebitTransaction.java
-│   │   │               │   ├── TransferTransaction.java
-│   │   │               │   ├── UserResponse.java
-│   │   │               │   ├── TransferResponse.java
-│   │   │               │   ├── ExceptionResponseDto.java
-│   │   │               │   └── ValidExceptionResponse.java
-│   │   │               │
-│   │   │               ├── exception/
-│   │   │               │   ├── GlobalExceptionHandler.java
-│   │   │               │   ├── ResourceNotFoundException.java
-│   │   │               │   ├── LowBalanceException.java
-│   │   │               │   └── SameAccountTransferException.java
-│   │   │               │
-│   │   │               ├── model/
-│   │   │               │   ├── BankAccount.java
-│   │   │               │   ├── TransactionHistory.java
-│   │   │               │   └── TransactionType.java
-│   │   │               │
-│   │   │               ├── repository/
-│   │   │               │   ├── AccountRepository.java
-│   │   │               │   └── TransactionRepository.java
-│   │   │               │
-│   │   │               └── service/
-│   │   │                   ├── AccountService.java
-│   │   │                   └── TransactionService.java
+│   │   ├── java/com/example/bank_management/
+│   │   │   ├── BankManagementApplication.java       # Application entry point
+│   │   │   │
+│   │   │   ├── controller/
+│   │   │   │   └── AccountController.java           # Public REST endpoints
+│   │   │   │
+│   │   │   ├── dto/                                 # Data contracts
+│   │   │   │   ├── CreateAccountRequest.java
+│   │   │   │   ├── CreditRequest.java
+│   │   │   │   ├── DebitRequest.java
+│   │   │   │   ├── TransferRequest.java
+│   │   │   │   ├── CreditTransaction.java
+│   │   │   │   ├── DebitTransaction.java
+│   │   │   │   ├── TransferTransaction.java
+│   │   │   │   ├── UserResponse.java
+│   │   │   │   ├── TransferResponse.java
+│   │   │   │   ├── ExceptionResponseDto.java
+│   │   │   │   └── ValidExceptionResponse.java
+│   │   │   │
+│   │   │   ├── exception/                           # Custom exceptions & handlers
+│   │   │   │   ├── GlobalExceptionHandler.java
+│   │   │   │   ├── ResourceNotFoundException.java
+│   │   │   │   ├── LowBalanceException.java
+│   │   │   │   └── SameAccountTransferException.java
+│   │   │   │
+│   │   │   ├── model/                               # JPA entities & enumerations
+│   │   │   │   ├── BankAccount.java
+│   │   │   │   ├── TransactionHistory.java
+│   │   │   │   └── TransactionType.java
+│   │   │   │
+│   │   │   ├── repository/                          # Spring Data JPA interfaces
+│   │   │   │   ├── AccountRepository.java
+│   │   │   │   └── TransactionRepository.java
+│   │   │   │
+│   │   │   └── service/                             # Business domain logic
+│   │   │       ├── AccountService.java
+│   │   │       └── TransactionService.java
 │   │   │
 │   │   └── resources/
-│   │       └── application.properties
+│   │       └── application.properties               # DB connection & JPA configs
 │   │
-│   └── test/
+│   └── test/                                        # Unit & integration tests
 │
 ├── pom.xml
 ├── mvnw
 ├── mvnw.cmd
 ├── .gitignore
 └── README.md
+```
 
 ---
 
-📂 Package Explanation
+## 🗃 Database & Data Models
 
-"controller/"
+### 1. `BankAccount` Entity
+Stores customer identification and active monetary balances.
 
-Contains REST controllers.
+```sql
+CREATE TABLE bank_account (
+    user_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_name VARCHAR(100) NOT NULL,
+    user_balance DOUBLE PRECISION NOT NULL DEFAULT 0.0
+);
+```
 
-"AccountController.java"
+### 2. `TransactionHistory` Entity
+An append-only record tracking financial shifts across the platform.
 
-This is the main API controller.
+```sql
+CREATE TABLE transaction_history (
+    transaction_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    sender_id BIGINT,
+    receiver_id BIGINT,
+    amount DOUBLE PRECISION NOT NULL,
+    type VARCHAR(20) NOT NULL,     -- CREDIT, DEBIT, TRANSFER, FAILED
+    total DOUBLE PRECISION NOT NULL,    -- Running balance after transaction
+    time DATETIME NOT NULL
+);
+```
 
-It exposes endpoints for:
-
-POST   /accounts/create
-GET    /accounts
-PUT    /accounts/credit
-PUT    /accounts/debit
-GET    /accounts/balance
-PUT    /accounts/transfer
-GET    /accounts/history
-
-The controller receives requests and sends them to "AccountService".
-
----
-
-"service/"
-
-Contains the application's business logic.
-
-"AccountService.java"
-
-Responsible for:
-
-- Creating accounts
-- Finding accounts
-- Checking balance
-- Credit/debit operations
-- Validating account IDs
-- Checking sufficient balance
-- Transfer operations
-- Creating transaction DTOs
-- Calling "TransactionService"
-- Throwing custom exceptions
-
-"TransactionService.java"
-
-Responsible for:
-
-- Saving credit transactions
-- Saving debit transactions
-- Saving transfer transactions
-- Converting transaction entities into response DTOs
-- Returning transaction history
+### 3. `TransactionType` Enum
+- `CREDIT`: Inward deposit to a specific account.
+- `DEBIT`: Outward withdrawal from an account.
+- `TRANSFER`: Funds reallocated between two unique accounts.
+- `FAILED`: Aborted or non-executable operation.
 
 ---
 
-"repository/"
+## 🔌 API Reference & Documentation
 
-Repository interfaces communicate with the database through Spring Data JPA.
+**Base Context URL:** `http://localhost:8080/accounts`
 
-"AccountRepository.java"
+### Endpoints Overview
 
-Works with:
-
-BankAccount
-
-"TransactionRepository.java"
-
-Works with:
-
-TransactionHistory
-
-and can be extended with custom query methods such as user-specific transaction history.
+| Method | Endpoint | Description | Request Body |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/accounts/create` | Register a new bank account | `CreateAccountRequest` |
+| `GET` | `/accounts` | Retrieve all registered accounts | *None* |
+| `GET` | `/accounts/balance?userId={id}` | Check balance for a specific account | *None* |
+| `PUT` | `/accounts/credit` | Deposit money into an account | `CreditRequest` |
+| `PUT` | `/accounts/debit` | Withdraw money from an account | `DebitRequest` |
+| `PUT` | `/accounts/transfer` | Transfer funds between two accounts | `TransferRequest` |
+| `GET` | `/accounts/history` | View ledger of all logged transactions | *None* |
 
 ---
 
-📦 DTOs
+### Detailed Endpoint Specifications
 
-DTO means Data Transfer Object.
+#### 1. Create Account
+* **URL:** `POST /accounts/create`
+* **Headers:** `Content-Type: application/json`
 
-DTOs are used to control what data enters and leaves the API instead of directly using entities everywhere.
-
----
-
-"CreateAccountRequest"
-
-Used while creating an account.
-
-Example:
-
+**Request Body:**
+```json
 {
-  "name": "Rahul",
-  "amount": 5000
+  "name": "Rahul Bisht",
+  "amount": 5000.0
 }
+```
 
-Fields:
+**cURL Command:**
+```bash
+curl -X POST http://localhost:8080/accounts/create   -H "Content-Type: application/json"   -d '{"name":"Rahul Bisht","amount":5000.0}'
+```
 
-Field| Type| Validation
-name| String| "@NotBlank"
-amount| double| "@Positive"
-
----
-
-"CreditRequest"
-
-Used for depositing money.
-
+**Response (`200 OK` / `201 Created`):**
+```json
 {
   "userId": 500001,
-  "amount": 1000
-}
-
-Fields:
-
-Field| Type| Validation
-userId| Long| "@NotNull"
-amount| double| "@Positive"
-
----
-
-"DebitRequest"
-
-Used for withdrawing money.
-
-{
-  "userId": 500001,
-  "amount": 500
-}
-
-Fields:
-
-Field| Type| Validation
-userId| Long| "@NotNull"
-amount| double| "@Positive"
-
----
-
-"TransferRequest"
-
-Used for transferring money.
-
-{
-  "senderId": 500001,
-  "receiverId": 500002,
-  "amount": 1000
-}
-
-Fields:
-
-Field| Type| Validation
-senderId| Long| "@NotNull"
-receiverId| Long| "@NotNull"
-amount| double| "@Positive"
-
----
-
-🗃️ Models
-
-"BankAccount"
-
-Main account entity.
-
-BankAccount
-│
-├── userId
-├── userName
-└── userBalance
-
-Example:
-
-{
-  "userId": 500001,
-  "userName": "Rahul",
+  "userName": "Rahul Bisht",
   "userBalance": 5000.0
 }
-
-"userId" is the primary key.
-
----
-
-"TransactionHistory"
-
-Stores transaction information.
-
-TransactionHistory
-│
-├── transactionId
-├── senderId
-├── receiverId
-├── amount
-├── type
-├── total
-└── time
-
-Example:
-
-{
-  "transactionId": 1,
-  "senderId": 500001,
-  "receiverId": 500002,
-  "amount": 1000.0,
-  "type": "TRANSFER",
-  "total": 4000.0,
-  "time": "2026-09-08T15:30:00"
-}
+```
 
 ---
 
-🔄 Transaction Types
+#### 2. List All Accounts
+* **URL:** `GET /accounts`
 
-The project uses the "TransactionType" enum.
+**cURL Command:**
+```bash
+curl -X GET http://localhost:8080/accounts
+```
 
-public enum TransactionType {
-    CREDIT,
-    DEBIT,
-    TRANSFER,
-    FAILED
-}
-
-Meaning:
-
-Type| Meaning
-"CREDIT"| Money deposited
-"DEBIT"| Money withdrawn
-"TRANSFER"| Money transferred
-"FAILED"| Transaction failed
-
----
-
-🚨 Exception Handling
-
-The project uses custom exceptions instead of putting every error response directly inside the controller.
-
-"ResourceNotFoundException"
-
-Used when an account does not exist.
-
-Example:
-
-500001 Not Found
-
-HTTP status:
-
-404 NOT_FOUND
-
----
-
-"LowBalanceException"
-
-Used when the account does not have enough balance.
-
-Example:
-
-Your balance is low
-
-HTTP status:
-
-400 BAD_REQUEST
-
----
-
-"SameAccountTransferException"
-
-Used when sender and receiver are the same account.
-
-Example:
-
-You are not transfer money in Your same Account
-
-HTTP status:
-
-400 BAD_REQUEST
-
----
-
-"GlobalExceptionHandler"
-
-"GlobalExceptionHandler" is annotated with:
-
-@RestControllerAdvice
-
-It centrally handles exceptions thrown by controllers/services.
-
-This keeps "AccountController" clean.
-
----
-
-🌐 API Documentation
-
-Base URL:
-
-http://localhost:8080/accounts
-
-All account APIs start with:
-
-/accounts
-
----
-
-1️⃣ Create Account
-
-Endpoint
-
-POST /accounts/create
-
-Request
-
-{
-  "name": "Rahul",
-  "amount": 5000
-}
-
-cURL
-
-curl -X POST http://localhost:8080/accounts/create \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Rahul","amount":5000}'
-
-Successful Response
-
-{
-  "userId": 500001,
-  "userName": "Rahul",
-  "userBalance": 5000.0
-}
-
-Status
-
-200 OK
-
----
-
-2️⃣ Get All Accounts
-
-Endpoint
-
-GET /accounts
-
-cURL
-
-curl http://localhost:8080/accounts
-
-Response
-
+**Response (`200 OK`):**
+```json
 [
   {
     "userId": 500001,
-    "userName": "Rahul",
+    "userName": "Rahul Bisht",
     "userBalance": 5000.0
   },
   {
     "userId": 500002,
-    "userName": "Aman",
+    "userName": "Aman Sharma",
     "userBalance": 3000.0
   }
 ]
-
-Status
-
-200 OK
+```
 
 ---
 
-3️⃣ Check Account / Balance
+#### 3. Check Account Balance
+* **URL:** `GET /accounts/balance?userId=500001`
 
-Endpoint
+**cURL Command:**
+```bash
+curl -X GET "http://localhost:8080/accounts/balance?userId=500001"
+```
 
-GET /accounts/balance?userId={userId}
-
-Example
-
-GET /accounts/balance?userId=500001
-
-cURL
-
-curl "http://localhost:8080/accounts/balance?userId=500001"
-
-Response
-
+**Response (`200 OK`):**
+```json
 {
   "userId": 500001,
-  "userName": "Rahul",
+  "userName": "Rahul Bisht",
   "userBalance": 5000.0
 }
-
-If Account Does Not Exist
-
-The service throws:
-
-ResourceNotFoundException
-
-The global exception handler returns a structured error response.
+```
 
 ---
 
-4️⃣ Credit / Deposit Money
+#### 4. Deposit Funds (Credit)
+* **URL:** `PUT /accounts/credit`
+* **Headers:** `Content-Type: application/json`
 
-Credit means account me money add karna.
-
-Endpoint
-
-PUT /accounts/credit
-
-Request
-
+**Request Body:**
+```json
 {
   "userId": 500001,
-  "amount": 1000
+  "amount": 1000.0
 }
+```
 
-cURL
+**cURL Command:**
+```bash
+curl -X PUT http://localhost:8080/accounts/credit   -H "Content-Type: application/json"   -d '{"userId":500001,"amount":1000.0}'
+```
 
-curl -X PUT http://localhost:8080/accounts/credit \
-  -H "Content-Type: application/json" \
-  -d '{"userId":500001,"amount":1000}'
-
-Suppose old balance:
-
-5000
-
-After credit:
-
-6000
-
-Response
-
+**Response (`200 OK`):**
+```json
 {
   "transactionId": 1,
   "userId": 500001,
-  "name": "Rahul",
+  "name": "Rahul Bisht",
   "amount": 1000.0,
   "type": "CREDIT",
   "time": "2026-09-08T15:30:00"
 }
-
-Status
-
-200 OK
+```
 
 ---
 
-5️⃣ Debit / Withdraw Money
+#### 5. Withdraw Funds (Debit)
+* **URL:** `PUT /accounts/debit`
+* **Headers:** `Content-Type: application/json`
 
-Debit means account se money withdraw karna.
-
-Endpoint
-
-PUT /accounts/debit
-
-Request
-
+**Request Body:**
+```json
 {
   "userId": 500001,
-  "amount": 500
+  "amount": 500.0
 }
+```
 
-cURL
+**cURL Command:**
+```bash
+curl -X PUT http://localhost:8080/accounts/debit   -H "Content-Type: application/json"   -d '{"userId":500001,"amount":500.0}'
+```
 
-curl -X PUT http://localhost:8080/accounts/debit \
-  -H "Content-Type: application/json" \
-  -d '{"userId":500001,"amount":500}'
-
-If balance is:
-
-6000
-
-After debit:
-
-5500
-
-Successful Response
-
+**Response (`200 OK`):**
+```json
 {
   "transactionId": 2,
   "userId": 500001,
-  "name": "Rahul",
+  "name": "Rahul Bisht",
   "amount": 500.0,
   "type": "DEBIT",
   "time": "2026-09-08T15:35:00"
 }
-
-Insufficient Balance
-
-If the user tries to withdraw more than the available balance, the service throws:
-
-LowBalanceException
-
-Example:
-
-{
-  "status": 400,
-  "error": "Bad Request",
-  "message": "You have low balance in 500001 your Account!",
-  "type": "FAILED"
-}
+```
 
 ---
 
-6️⃣ Transfer Money
+#### 6. Transfer Funds (P2P)
+* **URL:** `PUT /accounts/transfer`
+* **Headers:** `Content-Type: application/json`
 
-Transfers money from one account to another.
-
-Endpoint
-
-PUT /accounts/transfer
-
-Request
-
+**Request Body:**
+```json
 {
   "senderId": 500001,
   "receiverId": 500002,
-  "amount": 1000
+  "amount": 1000.0
 }
+```
 
-cURL
+**cURL Command:**
+```bash
+curl -X PUT http://localhost:8080/accounts/transfer   -H "Content-Type: application/json"   -d '{"senderId":500001,"receiverId":500002,"amount":1000.0}'
+```
 
-curl -X PUT http://localhost:8080/accounts/transfer \
-  -H "Content-Type: application/json" \
-  -d '{"senderId":500001,"receiverId":500002,"amount":1000}'
-
-Transfer Flow
-
-Sender Account
-      │
-      │  Debit 1000
-      ▼
-Sender Balance
-      │
-      │
-      ▼
-Receiver Account
-      │
-      │  Credit 1000
-      ▼
-Receiver Balance
-
-Successful Response
-
+**Response (`200 OK`):**
+```json
 {
   "transactionId": 3,
   "senderId": 500001,
   "receiverId": 500002,
-  "name": "Rahul",
+  "name": "Rahul Bisht",
   "amount": 1000.0,
   "type": "TRANSFER",
   "time": "2026-09-08T15:40:00"
 }
+```
 
 ---
 
-Transfer Validations
+#### 7. Transaction Audit History
+* **URL:** `GET /accounts/history`
 
-Sender account does not exist
+**cURL Command:**
+```bash
+curl -X GET http://localhost:8080/accounts/history
+```
 
-Throws:
-
-ResourceNotFoundException
-
-Receiver account does not exist
-
-Throws:
-
-ResourceNotFoundException
-
-Sender and receiver are the same
-
-Throws:
-
-SameAccountTransferException
-
-Sender has insufficient balance
-
-Throws:
-
-LowBalanceException
-
----
-
-7️⃣ Transaction History
-
-Returns all saved transactions.
-
-Endpoint
-
-GET /accounts/history
-
-cURL
-
-curl http://localhost:8080/accounts/history
-
-Example Response
-
+**Response (`200 OK`):**
+```json
 [
   {
     "transactionId": 1,
@@ -757,38 +440,52 @@ Example Response
     "time": "2026-09-08T15:40:00"
   }
 ]
-
-Status
-
-200 OK
+```
 
 ---
 
-❌ Validation Errors
+## 🛡 Validation & Error Handling
 
-Request DTOs use Jakarta Bean Validation.
+The application leverages **Jakarta Bean Validation** coupled with a centralized **`@RestControllerAdvice`** (`GlobalExceptionHandler`) to ensure errors are returned predictably.
 
-For example:
+### Standard Error Payloads
 
-@NotNull
-private Long userId;
-
-@Positive
-private double amount;
-
-If an invalid request is sent:
-
+#### 1. Low Balance Error (`400 BAD REQUEST`)
+Triggered when withdrawing or transferring more funds than an account holds.
+```json
 {
-  "userId": null,
-  "amount": -500
+  "status": 400,
+  "error": "Bad Request",
+  "message": "You have low balance in account 500001!",
+  "type": "FAILED"
 }
+```
 
-"MethodArgumentNotValidException" is generated.
+#### 2. Account Not Found (`404 NOT FOUND`)
+Triggered when an identifier fails database lookup.
+```json
+{
+  "status": 404,
+  "error": "Not Found",
+  "message": "Account with ID 999999 was not found.",
+  "type": "FAILED"
+}
+```
 
-"GlobalExceptionHandler" converts it into a structured response.
+#### 3. Same Account Transfer (`400 BAD REQUEST`)
+Triggered when `senderId == receiverId`.
+```json
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Cannot transfer money to the same account!",
+  "type": "FAILED"
+}
+```
 
-Example:
-
+#### 4. Schema Validation Failure (`400 BAD REQUEST`)
+Triggered by `@Valid` when incoming parameters fail format requirements.
+```json
 {
   "status": 400,
   "error": "Bad Request",
@@ -800,336 +497,104 @@ Example:
     "amount": "must be greater than 0"
   }
 }
+```
 
 ---
 
-📋 HTTP Status Codes
+## 🔁 End-to-End Walkthrough Flow
 
-Status| Meaning| Example
-"200 OK"| Request successful| Credit/Transfer
-"400 BAD_REQUEST"| Invalid request/business error| Low balance
-"404 NOT_FOUND"| Account/resource not found| Invalid userId
-"500 INTERNAL_SERVER_ERROR"| Unexpected server error| Unknown runtime error
+Follow this sequence to test the entire lifecycle:
 
----
+1. **Create First Account:**  
+   `POST /accounts/create` with `{"name": "Rahul", "amount": 5000.0}`  
+   *(Assigned `userId = 500001`)*
 
-🔁 Complete Example Flow
+2. **Create Second Account:**  
+   `POST /accounts/create` with `{"name": "Aman", "amount": 2000.0}`  
+   *(Assigned `userId = 500002`)*
 
-A typical banking operation can be tested in this order.
+3. **Verify Balance:**  
+   `GET /accounts/balance?userId=500001` → Balance is `5000.0`.
 
-Step 1 — Create Sender
+4. **Deposit (Credit):**  
+   `PUT /accounts/credit` with `{"userId": 500001, "amount": 1000.0}`  
+   → Balance becomes `6000.0`.
 
-POST /accounts/create
+5. **Withdraw (Debit):**  
+   `PUT /accounts/debit` with `{"userId": 500001, "amount": 500.0}`  
+   → Balance becomes `5500.0`.
 
-{
-  "name": "Rahul",
-  "amount": 5000
-}
+6. **Transfer Funds:**  
+   `PUT /accounts/transfer` with `{"senderId": 500001, "receiverId": 500002, "amount": 1000.0}`  
+   → Sender balance becomes `4500.0`, Receiver balance becomes `3000.0`.
 
-Suppose:
-
-userId = 500001
-
----
-
-Step 2 — Create Receiver
-
-POST /accounts/create
-
-{
-  "name": "Aman",
-  "amount": 2000
-}
-
-Suppose:
-
-userId = 500002
+7. **Review Audit Trail:**  
+   `GET /accounts/history` → Verify all 3 operations are chronologically preserved.
 
 ---
 
-Step 3 — Check Sender Balance
+## 🚀 Getting Started
 
-GET /accounts/balance?userId=500001
+### Prerequisites
+* **Java Development Kit (JDK):** Version 21 or newer
+* **Database:** MariaDB Server or MySQL Server running on port `3306`
+* **Git:** Version control client
 
-Balance:
+### 1. Clone the Repository
+```bash
+git clone https://github.com/Rahul01bisht/Bank-Management.git
+cd Bank-Management
+```
 
-5000
+### 2. Configure MariaDB / MySQL
+Log into your database shell and instantiate the database:
+```sql
+CREATE DATABASE bank_management;
+```
 
----
-
-Step 4 — Credit Sender
-
-PUT /accounts/credit
-
-{
-  "userId": 500001,
-  "amount": 1000
-}
-
-Balance:
-
-6000
-
----
-
-Step 5 — Debit Sender
-
-PUT /accounts/debit
-
-{
-  "userId": 500001,
-  "amount": 500
-}
-
-Balance:
-
-5500
-
----
-
-Step 6 — Transfer
-
-PUT /accounts/transfer
-
-{
-  "senderId": 500001,
-  "receiverId": 500002,
-  "amount": 1000
-}
-
-New balances:
-
-Sender   = 4500
-Receiver = 3000
-
----
-
-Step 7 — View History
-
-GET /accounts/history
-
-This returns stored transaction records.
-
----
-
-⚙️ Database Configuration
-
-Configure your database inside:
-
-src/main/resources/application.properties
-
-Example:
-
+Update your connection credentials in `src/main/resources/application.properties`:
+```properties
 spring.datasource.url=jdbc:mariadb://localhost:3306/bank_management
-spring.datasource.username=YOUR_USERNAME
-spring.datasource.password=YOUR_PASSWORD
+spring.datasource.username=YOUR_DB_USER
+spring.datasource.password=YOUR_DB_PASSWORD
+spring.datasource.driver-class-name=org.mariadb.jdbc.Driver
 
+# JPA / Hibernate Settings
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
 spring.jpa.properties.hibernate.format_sql=true
+```
 
-Replace the database username and password with your local configuration.
+### 3. Build & Run Application
 
----
+* **Linux / macOS:**
+  ```bash
+  ./mvnw clean spring-boot:run
+  ```
 
-▶️ Running the Project
+* **Windows:**
+  ```cmd
+  mvnw.cmd clean spring-boot:run
+  ```
 
-1. Clone the repository
-
-git clone https://github.com/Rahul01bisht/Bank-Management.git
-
-2. Enter the project
-
-cd Bank-Management
-
-3. Configure the database
-
-Edit:
-
-src/main/resources/application.properties
-
-4. Start Spring Boot
-
-Using Maven Wrapper:
-
-./mvnw spring-boot:run
-
-Or:
-
-mvn spring-boot:run
-
-The application will normally start on:
-
-http://localhost:8080
-
-API base:
-
-http://localhost:8080/accounts
+The server will launch on port `8080`. You can start sending requests to `http://localhost:8080/accounts`.
 
 ---
 
-🧪 Testing With cURL
+## 📈 Roadmap
 
-Create
-
-curl -X POST http://localhost:8080/accounts/create \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Rahul","amount":5000}'
-
-Get all
-
-curl http://localhost:8080/accounts
-
-Balance
-
-curl "http://localhost:8080/accounts/balance?userId=500001"
-
-Credit
-
-curl -X PUT http://localhost:8080/accounts/credit \
-  -H "Content-Type: application/json" \
-  -d '{"userId":500001,"amount":1000}'
-
-Debit
-
-curl -X PUT http://localhost:8080/accounts/debit \
-  -H "Content-Type: application/json" \
-  -d '{"userId":500001,"amount":500}'
-
-Transfer
-
-curl -X PUT http://localhost:8080/accounts/transfer \
-  -H "Content-Type: application/json" \
-  -d '{"senderId":500001,"receiverId":500002,"amount":1000}'
-
-History
-
-curl http://localhost:8080/accounts/history
+- [ ] Add `@Transactional` safety to ensure atomic rollbacks during transfer failures
+- [ ] User-filtered transaction queries (`GET /accounts/history/{userId}`)
+- [ ] Pagination & dynamic sorting on ledger tables
+- [ ] Authentication & Authorization with Spring Security + JWT
+- [ ] Interactive API documentation via Swagger UI / OpenAPI 3
+- [ ] Modern UI Dashboard built with React & Tailwind CSS
+- [ ] Containerization with Docker & Docker Compose
 
 ---
 
-🧠 Architecture Explanation
+## 👨‍💻 Author & Acknowledgments
 
-The application follows:
+* **Rahul Bisht** - [GitHub Profile](https://github.com/Rahul01bisht)
 
-Controller
-    ↓
-Service
-    ↓
-Repository
-    ↓
-Database
-
-For example, when a user transfers money:
-
-PUT /accounts/transfer
-          │
-          ▼
-   AccountController
-          │
-          ▼
-     AccountService
-          │
-          ├── Check sender
-          ├── Check receiver
-          ├── Check same account
-          ├── Check balance
-          ├── Debit sender
-          ├── Credit receiver
-          │
-          ▼
-   TransactionService
-          │
-          ▼
- TransactionRepository
-          │
-          ▼
-       Database
-
-This separation makes the application easier to maintain and extend.
-
----
-
-🛡️ Error Handling Architecture
-
-Exception occurs
-      │
-      ▼
-Service throws exception
-      │
-      ▼
-GlobalExceptionHandler
-      │
-      ├── ResourceNotFoundException
-      ├── LowBalanceException
-      ├── SameAccountTransferException
-      ├── MethodArgumentNotValidException
-      ├── RuntimeException
-      └── Exception
-      │
-      ▼
-Structured JSON Response
-
-This prevents business-error handling from becoming repetitive inside every controller method.
-
----
-
-📌 Important Design Notes
-
-DTOs
-
-Request DTOs prevent the controller from directly accepting database entities for operations such as credit, debit, and transfer.
-
-Services
-
-Business rules are kept inside "AccountService", rather than inside the controller.
-
-Transactions
-
-Transaction data is handled separately through "TransactionService".
-
-Exceptions
-
-Business errors are represented using custom exceptions and handled centrally by "GlobalExceptionHandler".
-
-Validation
-
-"@Valid" triggers Jakarta Bean Validation before the service receives invalid request data.
-
----
-
-🚀 Future Improvements
-
-The current project can be extended with:
-
-- [ ] User-specific transaction history
-- [ ] Pagination and sorting
-- [ ] Account search
-- [ ] Account update
-- [ ] Spring Security
-- [ ] JWT authentication
-- [ ] BCrypt password hashing
-- [ ] Role-based authorization
-- [ ] "@Transactional" transfer processing
-- [ ] Swagger / OpenAPI documentation
-- [ ] Unit tests
-- [ ] Integration tests
-- [ ] React frontend
-- [ ] Docker deployment
-- [ ] Cloud deployment
-
----
-
-👨‍💻 Author
-
-Rahul Bisht
-
-GitHub:
-
-https://github.com/Rahul01bisht/Bank-Management
-
----
-
-📄 License
-
-This project is created for learning and development purposes.
+Built with ☕ **Java 21** and 🍃 **Spring Boot 3.5.3**.
