@@ -54,8 +54,30 @@ public class TransactionService{
     return list;
   }
   
-  public List<TransactionHistory> showAll(){
-    return repo.findAll();
+  public List<TransferResponse> transactionHistory(){
+    List<TransactionHistory> dataArray =
+      repo.findAll();
+    List<TransferResponse> list =
+      new ArrayList<>();
+    for(TransactionHistory data : dataArray){
+      list.add(mapOfTransferResponse(data));
+    }
+
+    return list;
+  }
+  
+  public List<TransferResponse> transactionHistoryById(Long userId){
+    
+    List<TransactionHistory> dataArray =
+      repo.findBySenderIdOrReceiverId(userId, userId);
+    List<TransferResponse> list =
+      new ArrayList<>();
+    for(TransactionHistory data : dataArray){
+      list.add(mapOfTransferResponse(data));
+    }
+
+    return list;
+    
   }
 
 

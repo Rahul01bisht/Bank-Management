@@ -19,8 +19,6 @@ public class AccountController {
 
   @Autowired
   private AccountService acService;
-  @Autowired
-  private TransactionService tsService;
 
 
   
@@ -95,10 +93,21 @@ public class AccountController {
 
 
   // TRANSACTION HISTORY
-  @GetMapping("/history")
-  public ResponseEntity<List<TransactionHistory>> history() {
+  @GetMapping("/transaction")
+  public ResponseEntity<List<TransferResponse>> history() {
     return ResponseEntity.ok(
-                tsService.showAll()
+                acService.transactionHistory()
         );
+
+  }
+
+
+    //see transaction history by id
+    @GetMapping("/transaction/{userId}")
+  public ResponseEntity<List<TransferResponse>> historyByUserId(@PathVariable Long userId) {
+    return ResponseEntity.ok(
+                acService.transactionHistoryById(userId)
+        );
+    
   }
 }

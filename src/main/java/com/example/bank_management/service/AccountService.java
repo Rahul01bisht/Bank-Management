@@ -53,11 +53,20 @@ public class AccountService{
   }
   
 
-  //getUserId  name
+  //getUserId  Name
   private String findUserName(Long userId)
   {
     BankAccount data = findUser(userId);
     return data.getUserName();
+  }
+
+  private String findUserIdName(Long userId){
+    BankAccount data = repo
+         .findById(userId)
+         .orElse(null);
+    if(data == null) return "null";
+    return data.getUserName();
+    
   }
 
 
@@ -93,10 +102,7 @@ public class AccountService{
     if(!findUserId(data.getUserId())){
 
       list.setType(TransactionType.FAILED);
-    
-      UserResponse response = tsService.saveCredit(list);
-      response.setName("Not found");
-      
+      tsService.saveCredit(list);
       throw new ResourceNotFoundException(
         data.getUserId() + " Not Found"
       );
@@ -137,24 +143,23 @@ public class AccountService{
 
     // Validate user id 
     if(!findUserId(data.getUserId())){
-      list.setType(TransactionType.FAILED);
-    
-      UserResponse response = 
-        tsService.saveDebit(list);
-      response.setName("Not found");
       
+      list.setType(TransactionType.FAILED);
+      tsService.saveDebit(list);
       throw new ResourceNotFoundException(
         data.getUserId() + " Not Found"
       );
+      
     }
 
     //Validate Account Money
     if(!isValidBalance(data)){
+      
       list.setType(TransactionType.FAILED);
       list.setTotal(balance(data.getUserId()));
       tsService.saveDebit(list);
-
       throw new LowBalanceException("You have low balance in " + data.getUserId()+" your Account!");
+    
     }
 
     //Debit Money
@@ -227,6 +232,44 @@ public class AccountService{
 }
 
 
+  // see Transaction history
+  public List<TransferResponse> transactionHistory(){
+
+    List<TransferResponse> data =
+      tsService.transactionHistory();
+    List<TransferResponse> list = new ArrayList<>();
+    for(TransferResponse ts:data){
+      if(ts.getSenderId() != null){
+        ts.setName(findUserIdName(ts.getSenderId()));
+      }else{
+        ts.setName(findUserIdName(ts.getReceiverId()));
+      }
+      list.add(ts);
+    }
+    
+    return list;
+  }
+
+
+  // see userId transaction History
+  public List<TransferResponse> transactionHistoryById(Long userId){
+    if(!findUserId(userId)){
+      throw new ResourceNotFoundException("this user is not Exits");
+    }
+    List<TransferResponse> data = 
+      tsService.transactionHistoryById(userId);
+    
+    List<TransferResponse> list = new ArrayList<>();
+    for(TransferResponse ts:data){
+      ts.setName(findUserIdName(userId));
+      list.add(ts);
+    }
+    
+    return list;
+  }
+
+
+  
   private BankAccount mapOfCreateAccount(CreateAccountRequest cAR){
     BankAccount bA = new BankAccount();
     bA.setUserName(cAR.getName());
