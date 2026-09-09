@@ -30,8 +30,13 @@ public class AccountService{
   
 
   // find all user
-  public List<BankAccount> findAll(){
-    return repo.findAll();
+  public List<AccountListDto> findAll(){
+    List<BankAccount> datas = repo.findAll();
+    List<AccountListDto> list = new ArrayList<>();
+    for(BankAccount data:datas){
+      list.add(mapOfAccountListDto(data));
+    }
+    return list;
   }
   
 
@@ -317,5 +322,15 @@ public class AccountService{
     list.setReceiverId(data.getReceiverId());
     return list;
     }
+
+
+  private AccountListDto mapOfAccountListDto (BankAccount data){
+    AccountListDto list = new AccountListDto(
+      data.getUserName(),
+      data.getUserId(),
+      data.getUserBalance()
+    );
+    return list;
+  }
   
 }

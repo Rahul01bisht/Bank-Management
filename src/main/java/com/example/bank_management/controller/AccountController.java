@@ -35,7 +35,7 @@ public class AccountController {
   
   // FIND ALL ACCOUNTS
   @GetMapping
-  public ResponseEntity<List<BankAccount>> findAll() {
+  public ResponseEntity<List<AccountListDto>> findAll() {
     
     return ResponseEntity.ok(acService.findAll());
     }
