@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 
+import org.springframework.security.web.csrf.CsrfToken;
+
 import java.util.*;
 
 @RestController
@@ -19,6 +21,11 @@ public class AccountController {
 
   @Autowired
   private AccountService acService;
+
+  @GetMapping("/csrf")
+  public ResponseEntity<CsrfToken> csrf(CsrfToken data){
+    return ResponseEntity.ok(data);
+  }
 
 
   
@@ -39,8 +46,6 @@ public class AccountController {
     
     return ResponseEntity.ok(acService.findAll());
     }
-
-
     
   // CREDIT MONEY
   @PutMapping("/credit")

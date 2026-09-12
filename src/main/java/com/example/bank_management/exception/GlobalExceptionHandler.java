@@ -82,6 +82,24 @@ public class GlobalExceptionHandler{
 
   
 
+  @ExceptionHandler(UserNameAlreadyRegisterException.class)
+  public ResponseEntity<ExceptionResponseDto> handleUserNameAlreadyRegisterException(UserNameAlreadyRegisterException ex){
+
+    ExceptionResponseDto data =
+      new ExceptionResponseDto(
+        HttpStatus.CONFLICT.value(),
+        HttpStatus.CONFLICT.getReasonPhrase(),
+        ex.getMessage(),
+        TransactionType.FAILED,
+        LocalDateTime.now()
+    );
+    
+    return ResponseEntity
+      .status(HttpStatus.CONFLICT)
+      .body(data);
+  }
+
+  
   @ExceptionHandler(LowBalanceException.class)
   public ResponseEntity<ExceptionResponseDto> handleLowBalanceException(LowBalanceException ex){
 
